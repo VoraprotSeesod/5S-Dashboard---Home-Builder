@@ -466,7 +466,10 @@ function setupObjectEvents(scene, object) {
             // ป้องกัน context menu
             pointer.event.preventDefault();
         } else if (pointer.rightButtonDown()) {
-            if (apiData && apiData.length > 0) {
+            // สำหรับ custom-image object ให้แสดงเมนูเลือกระหว่างเปลี่ยนรูปหรือเลือกข้อมูล
+            if (object.itemType === 'custom-image') {
+                showImageObjectMenu(scene, object);
+            } else if (apiData && apiData.length > 0) {
                 showDataSelection(scene, object);
             } else {
                 selectObject(scene, object);
@@ -481,7 +484,7 @@ function setupObjectEvents(scene, object) {
         if (object.selectedItem) {
             tooltipText.setText(`${object.selectedItem[0]}\n${object.selectedItem[1]}\n${object.selectedItem[2]}`);
         } else if (object.itemType === 'custom-image') {
-            tooltipText.setText(`${object.imageData.name}\nMiddle-click to drag`);
+            tooltipText.setText(`${object.imageData.name}\nRight-click: Change image/Data\nMiddle-click: Drag`);
         } else {
             tooltipText.setText(`${object.itemType}\nMiddle-click to drag`);
         }
@@ -604,10 +607,276 @@ function updateObjectTooltip(object) {
     if (object.selectedItem) {
         tooltipText.setText(`${object.selectedItem[0]}\n${object.selectedItem[1]}\n${object.selectedItem[2]}`);
     } else if (object.itemType === 'custom-image') {
-        tooltipText.setText(`${object.imageData.name}\nRight-click to assign data`);
+        tooltipText.setText(`${object.imageData.name}\nRight-click: Change image/Data`);
     } else {
         tooltipText.setText(`${object.itemType}\nRight-click to assign data`);
     }
+}
+
+function showImageObjectMenu(scene, object) {
+    // ลบเมนูเดิมถ้ามี
+    let menu = document.getElementById('imageObjectMenu');
+    if (menu) {
+        menu.remove();
+    }
+
+    menu = document.createElement('div');
+    menu.id = 'imageObjectMenu';
+    menu.style.position = 'absolute';
+    menu.style.zIndex = '2000';
+    menu.style.background = 'white';
+    menu.style.border = '1px solid #ccc';
+    menu.style.borderRadius = '4px';
+    menu.style.padding = '5px';
+    menu.style.boxShadow = '0 2px 10px rgba(0,0,0,0.2)';
+    menu.style.minWidth = '150px';
+
+    // ปุ่มเปลี่ยนรูปภาพ
+    if (uploadedImages.length > 0) {
+        const changeImageBtn = document.createElement('button');
+        changeImageBtn.textContent = '🖼️ เปลี่ยนรูปภาพ';
+        changeImageBtn.style.width = '100%';
+        changeImageBtn.style.padding = '8px';
+        changeImageBtn.style.marginBottom = '5px';
+        changeImageBtn.style.border = 'none';
+        changeImageBtn.style.background = '#4CAF50';
+        changeImageBtn.style.color = 'white';
+        changeImageBtn.style.borderRadius = '4px';
+        changeImageBtn.style.cursor = 'pointer';
+        changeImageBtn.onclick = () => {
+            menu.remove();
+            showImageSelection(scene, object);
+        };
+        menu.appendChild(changeImageBtn);
+    }
+
+    // ปุ่มเลือกข้อมูล 5S
+    if (apiData && apiData.length > 0) {
+        const selectDataBtn = document.createElement('button');
+        selectDataBtn.textContent = '📊 เลือกข้อมูล 5S';
+        selectDataBtn.style.width = '100%';
+        selectDataBtn.style.padding = '8px';
+        selectDataBtn.style.marginBottom = '5px';
+        selectDataBtn.style.border = 'none';
+        selectDataBtn.style.background = '#2196F3';
+        selectDataBtn.style.color = 'white';
+        selectDataBtn.style.borderRadius = '4px';
+        selectDataBtn.style.cursor = 'pointer';
+        selectDataBtn.onclick = () => {
+            menu.remove();
+            showDataSelection(scene, object);
+        };
+        menu.appendChild(selectDataBtn);
+    }
+
+    // ปุ่มลบข้อมูล 5S (ถ้ามี)
+    if (object.selectedItem) {
+        const clearDataBtn = document.createElement('button');
+        clearDataBtn.textContent = '🗑️ ลบข้อมูล 5S';
+        clearDataBtn.style.width = '100%';
+        clearDataBtn.style.padding = '8px';
+        clearDataBtn.style.marginBottom = '5px';
+        clearDataBtn.style.border = 'none';
+        clearDataBtn.style.background = '#f44336';
+        clearDataBtn.style.color = 'white';
+        clearDataBtn.style.borderRadius = '4px';
+        clearDataBtn.style.cursor = 'pointer';
+        clearDataBtn.onclick = () => {
+            object.selectedItem = null;
+            object.clearTint();
+            updateObjectTooltip(object);
+            menu.remove();
+        };
+        menu.appendChild(clearDataBtn);
+    }
+
+    // ปุ่มปิด
+    const closeBtn = document.createElement('button');
+    closeBtn.textContent = '✕ ปิด';
+    closeBtn.style.width = '100%';
+    closeBtn.style.padding = '8px';
+    closeBtn.style.border = 'none';
+    closeBtn.style.background = '#999';
+    closeBtn.style.color = 'white';
+    closeBtn.style.borderRadius = '4px';
+    closeBtn.style.cursor = 'pointer';
+    closeBtn.onclick = () => {
+        menu.remove();
+    };
+    menu.appendChild(closeBtn);
+
+    // ตั้งตำแหน่งเมนู
+    updateMenuPosition(menu, scene, object);
+
+    // ปิดเมนูเมื่อคลิกข้างนอก
+    const closeMenuOnClick = (e) => {
+        if (!menu.contains(e.target)) {
+            menu.remove();
+            document.removeEventListener('click', closeMenuOnClick);
+        }
+    };
+    setTimeout(() => {
+        document.addEventListener('click', closeMenuOnClick);
+    }, 100);
+
+    document.body.appendChild(menu);
+}
+
+function updateMenuPosition(menu, scene, object) {
+    const canvas = scene.sys.game.canvas;
+    const rect = canvas.getBoundingClientRect();
+    const left = rect.left + object.x + 20;
+    const top = rect.top + object.y - 20;
+    menu.style.left = `${left}px`;
+    menu.style.top = `${top}px`;
+}
+
+function showImageSelection(scene, object) {
+    if (!uploadedImages || uploadedImages.length === 0) {
+        alert('ไม่มีรูปภาพที่อัปโหลด กรุณาอัปโหลดรูปภาพก่อน');
+        return;
+    }
+
+    let select = document.getElementById('imageSelect');
+    if (select) {
+        const canvas = scene.sys.game.canvas;
+        const rect = canvas.getBoundingClientRect();
+        const left = rect.left + object.x - 40;
+        const top = rect.top + object.y - 20;
+        select.style.left = `${left}px`;
+        select.style.top = `${top}px`;
+        return;
+    }
+
+    select = document.createElement('select');
+    select.id = 'imageSelect';
+    select.style.position = 'absolute';
+    select.style.zIndex = '2000';
+    select.style.background = 'white';
+    select.style.padding = '5px';
+    select.style.border = '1px solid #ccc';
+    select.style.borderRadius = '4px';
+    select.style.minWidth = '200px';
+    
+    updateSelectPosition(select, scene, object);
+    select.innerHTML = '';
+
+    const defaultOption = document.createElement('option');
+    defaultOption.value = '';
+    defaultOption.text = 'เลือกรูปภาพใหม่...';
+    select.appendChild(defaultOption);
+
+    uploadedImages.forEach((imageData, i) => {
+        const option = document.createElement('option');
+        option.value = i;
+        option.text = imageData.name;
+        // ถ้าเป็นรูปปัจจุบันให้เลือกไว้
+        if (object.imageData && object.imageData.textureKey === imageData.textureKey) {
+            option.selected = true;
+        }
+        select.appendChild(option);
+    });
+
+    select.addEventListener('change', (e) => {
+        if (e.target.value === '') return;
+
+        const index = parseInt(e.target.value);
+        const newImageData = uploadedImages[index];
+        
+        if (!scene.textures.exists(newImageData.textureKey)) {
+            alert('รูปภาพยังไม่พร้อมใช้งาน');
+            return;
+        }
+
+        // เปลี่ยนรูปภาพ
+        changeObjectImage(scene, object, newImageData);
+        
+        if (document.body.contains(select)) select.remove();
+    });
+
+    select.addEventListener('blur', () => {
+        if (document.body.contains(select)) select.remove();
+    });
+
+    document.body.appendChild(select);
+    select.focus();
+}
+
+function changeObjectImage(scene, object, newImageData) {
+    // เก็บข้อมูลเดิม
+    const oldX = object.x;
+    const oldY = object.y;
+    const oldScale = object.scaleX;
+    const oldDepth = object.depth;
+    const oldSelectedItem = object.selectedItem;
+    const oldSelectionOutline = object.selectionOutline;
+    
+    // สร้าง image object ใหม่
+    const newObject = scene.add.image(oldX, oldY, newImageData.textureKey);
+    
+    // ตั้งค่า scale
+    const texture = scene.textures.get(newImageData.textureKey);
+    const maxSize = 128;
+    if (texture.source[0].width > maxSize || texture.source[0].height > maxSize) {
+        const scale = Math.min(maxSize / texture.source[0].width, maxSize / texture.source[0].height);
+        newObject.setScale(scale);
+    } else {
+        newObject.setScale(oldScale);
+    }
+    
+    // ตั้งค่า interactive
+    newObject.setInteractive({ useHandCursor: true });
+    newObject.setDepth(oldDepth);
+    
+    // เก็บข้อมูล
+    newObject.itemType = 'custom-image';
+    newObject.imageData = newImageData;
+    newObject.config = { 
+        width: newObject.width, 
+        height: newObject.height,
+        strokeColor: 0x00ff00 
+    };
+    newObject.selectedItem = oldSelectedItem;
+    newObject.selectionOutline = null;
+    
+    // ตั้งค่า tint ตามข้อมูล 5S ถ้ามี
+    if (oldSelectedItem) {
+        let tintColor = 0xffffff;
+        switch (oldSelectedItem[2]) {
+            case "5S": tintColor = 0x00ff00; break;
+            case "4S": tintColor = 0x99ff66; break;
+            case "3S": tintColor = 0xffff00; break;
+            case "2S": tintColor = 0xff9900; break;
+            case "1S": tintColor = 0xff0000; break;
+            case "0N": tintColor = 0x000000; break;
+        }
+        newObject.setTint(tintColor);
+    }
+    
+    // Event handlers
+    setupObjectEvents(scene, newObject);
+    
+    // อัพเดต selectedObject ถ้าเป็น object เดิม
+    if (selectedObject === object) {
+        selectedObject = newObject;
+        // สร้าง outline ใหม่
+        if (oldSelectionOutline) {
+            oldSelectionOutline.destroy();
+        }
+        selectObject(scene, newObject);
+    } else if (oldSelectionOutline) {
+        oldSelectionOutline.destroy();
+    }
+    
+    // ลบ object เก่า
+    const index = placedObjects.indexOf(object);
+    if (index > -1) {
+        placedObjects[index] = newObject;
+    }
+    
+    object.destroy();
+    
+    updateObjectTooltip(newObject);
 }
 
 function showDataSelection(scene, object) {
